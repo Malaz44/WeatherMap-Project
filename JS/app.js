@@ -12,6 +12,8 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 
+let currentMarker = null;
+
 function showError(message) {
   errorBox.textContent = message;
   errorBox.hidden = false;
@@ -80,6 +82,83 @@ async function getWeather(lat, lng) {
   };
 }
 
+function addRow(parent, label, value) {
+  const row = document.createElement('p');
+  row.className = 'popup-row';
+  row.textContent = label + ': ' + value;
+  parent.appendChild(row);
+}
+
+async function shareWeather(weather) {
+  const text = 'Weather in ' + weather.city + ': '
+    + Math.round(weather.temp) + '°C, '
+    + weather.description + ', humidity '
+    + weather.humidity + '%, wind '
+    + weather.windSpeed + ' m/s.';
+
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: 'WeatherMap', text: text });
+    } catch (error) {
+      console.log('Share cancelled');
+    }
+  } else {
+    await navigator.clipboard.writeText(text);
+    alert('Weather copied to clipboard!');
+  }
+}
+
+function buildPopup(weather) {
+  const card = document.createElement('div');
+  card.className = 'popup-card';
+
+  const title = document.createElement('h2');
+  title.className = 'popup-title';
+  title.textContent = weather.city;
+  card.appendChild(title);
+
+  const icon = document.createElement('img');
+  icon.className = 'popup-icon';
+  icon.src = 'https://openweathermap.org/img/wn/' + weather.icon + '@2x.png';
+  icon.alt = weather.description;
+  card.appendChild(icon);
+
+  const temp = document.createElement('p');
+  temp.className = 'popup-temp';
+  temp.textContent = Math.round(weather.temp) + '°C';
+  card.appendChild(temp);
+
+  addRow(card, 'Clouds', weather.clouds + '%');
+  addRow(card, 'Humidity', weather.humidity + '%');
+  addRow(card, 'Wind', weather.windSpeed + ' m/s');
+
+  const shareButton = document.createElement('button');
+  shareButton.type = 'button';
+  shareButton.className = 'share-btn';
+  shareButton.textContent = 'Share';
+  shareButton.addEventListener('click', function () {
+    shareWeather(weather);
+  });
+  card.appendChild(shareButton);
+
+  return card;
+}
+
+function showOnMap(location, weather) {
+  if (currentMarker !== null) {
+    map.removeLayer(currentMarker);
+  }
+
+  map.flyTo([location.lat, location.lng], 10, { duration: 2 });
+
+  currentMarker = L.marker([location.lat, location.lng]).addTo(map);
+  currentMarker.bindPopup(buildPopup(weather));
+
+  map.once('moveend', function () {
+    currentMarker.openPopup();
+  });
+}
+
 form.addEventListener('submit', async function (event) {
   event.preventDefault();
 
@@ -95,9 +174,7 @@ form.addEventListener('submit', async function (event) {
   try {
     const location = await getCoordinates(city);
     const weather = await getWeather(location.lat, location.lng);
-
-    console.log('Location:', location);
-    console.log('Weather:', weather);
+    showOnMap(location, weather);
   } catch (error) {
     showError(error.message);
   } finally {

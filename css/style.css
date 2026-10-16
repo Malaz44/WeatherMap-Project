@@ -133,3 +133,38 @@ button:hover {
     flex-direction: column;
   }
 }
+
+.popup-card {
+  text-align: center;
+  min-width: 170px;
+}
+
+.popup-title {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--purple-dark);
+}
+
+.popup-icon {
+  width: 70px;
+  height: 70px;
+}
+
+.popup-temp {
+  margin: 0 0 8px;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--purple-darker);
+}
+
+.popup-row {
+  margin: 4px 0;
+  font-size: 0.95rem;
+  text-transform: capitalize;
+}
+
+.share-btn {
+  margin-top: 10px;
+  padding: 8px 18px;
+  font-size: 0.95rem;
+}
