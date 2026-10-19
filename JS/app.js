@@ -4,6 +4,7 @@ const form = document.getElementById('weather-form');
 const cityInput = document.getElementById('city-input');
 const errorBox = document.getElementById('error-box');
 const spinner = document.getElementById('spinner');
+const submitButton = form.querySelector('button');
 
 const map = L.map('map').setView([15.5007, 32.5599], 6);
 
@@ -25,14 +26,26 @@ function hideError() {
 
 function showSpinner(show) {
   spinner.hidden = !show;
+  submitButton.disabled = show;
+}
+
+async function safeFetch(url) {
+  try {
+    return await fetch(url);
+  } catch (error) {
+    throw new Error('Please check your internet connection');
+  }
 }
 
 async function getCoordinates(city) {
   const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q='
     + encodeURIComponent(city);
 
-  const response = await fetch(url);
+  const response = await safeFetch(url);
 
+  if (response.status === 429) {
+    throw new Error('Too many requests. Please wait a moment and try again.');
+  }
   if (!response.ok) {
     throw new Error('Geocoding service is not available right now.');
   }
@@ -57,13 +70,16 @@ async function getWeather(lat, lng) {
     + '&appid=' + API_KEY
     + '&units=metric';
 
-  const response = await fetch(url);
+  const response = await safeFetch(url);
 
   if (response.status === 404) {
     throw new Error('Weather data was not found for this location.');
   }
   if (response.status === 401) {
     throw new Error('Invalid API key. Please check your OpenWeatherMap key.');
+  }
+  if (response.status === 429) {
+    throw new Error('Too many requests. Please wait a minute and try again.');
   }
   if (!response.ok) {
     throw new Error('Weather service error. Please try again later.');
@@ -96,15 +112,17 @@ async function shareWeather(weather) {
     + weather.humidity + '%, wind '
     + weather.windSpeed + ' m/s.';
 
-  if (navigator.share) {
-    try {
+  try {
+    if (navigator.share) {
       await navigator.share({ title: 'WeatherMap', text: text });
-    } catch (error) {
-      console.log('Share cancelled');
+    } else {
+      await navigator.clipboard.writeText(text);
+      alert('Weather copied to clipboard!');
     }
-  } else {
-    await navigator.clipboard.writeText(text);
-    alert('Weather copied to clipboard!');
+  } catch (error) {
+    if (error.name !== 'AbortError') {
+      showError('Sharing is not available on this device.');
+    }
   }
 }
 
